@@ -440,7 +440,7 @@
 <summary>파일 등록</summary>
 
 ### 파일 버전 업데이트 및 해당 파일에 대한 댓글 작성
-<img src="./img/Deployment Test/file_registration.gif"/>
+<img src="./img/Deployment Test/파일등록.gif"/>
 
 ### 파일 버전 되돌리기
 <img src="./img/Deployment Test/file_registration_1.gif"/>
