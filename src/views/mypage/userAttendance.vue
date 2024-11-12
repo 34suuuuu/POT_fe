@@ -1,6 +1,5 @@
 <template>
   <div class="userAttendance">
-
     <v-row class="attendance-bar">
       <v-col cols="6">
         <h3>출·퇴근 기록</h3>
@@ -54,17 +53,19 @@
         </v-row>
       </v-col>
     </v-row>
-
     <v-intersect @enter="loadMoreUsers"></v-intersect>
-
   </div>
 </template>
 
 <script>
 import axios from "axios";
 import { format, addHours } from 'date-fns';
+
 export default {
   name: "UserAttendance",
+  components: {
+
+  },
   data() {
     return {
       isWorkIn: false,

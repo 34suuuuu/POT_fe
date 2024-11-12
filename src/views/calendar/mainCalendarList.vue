@@ -225,12 +225,11 @@ export default {
 
 
 #second-calendar-container {
-  padding: 30px;
-  background-color: #f9f9f9;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #ddd;
-  /* background-image: linear-gradient(135deg, #f0f4f8, #f9f9f9); */
+   padding: 30px;
+   background-color: #f9f9f9;
+   border-radius: 10px;
+   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+   border: 1px solid #ddd;
 }
 
 
