@@ -26,7 +26,7 @@
 <br/>
 
 
-## 📝 요구 사항 정의서
+## 📈 요구 사항 정의서
 <img src="./img/요구사항정의서.gif" alt="요구사항정의서" width="1000" height="500" />
 
 <br/>
@@ -74,7 +74,7 @@
 
 <br/>
 
-[API 명세서 보기](https://documenter.getpostman.com/view/38441114/2sAXxLDEz5)
+[API 명세서 보기](https://docs.google.com/spreadsheets/d/1VqdbBtMBag14rsCLODUl4LLlspbeZv8nNFEQy_W30PI/edit?gid=234323063#gid=234323063)
 
 </div>
 
@@ -91,7 +91,7 @@
 
 <br>
 
-## 📌 API단위 테스트 결과서(주요기능)
+## 📌 API 단위 테스트 결과서(주요기능)
 
 
 [API 단위 테스트(세부기능)](https://documenter.getpostman.com/view/38441114/2sAXxLDEz5)
@@ -429,5 +429,62 @@
 ### 권한 별 일정 등록
 
 <img src="./img/ui테스트/달력등록.gif"/>
+
+</details>
+
+
+## 💡 배포 결과서
+
+<details>
+  
+<summary>파일 등록</summary>
+
+### 파일 버전 업데이트 및 해당 파일에 대한 댓글 작성
+<img src="./img/Deployment Test/file_registration.gif"/>
+
+### 파일 버전 되돌리기
+<img src="./img/Deployment Test/file_registration_1.gif"/>
+
+</details>
+
+<details>
+  
+<summary>일정 등록</summary>
+
+### 급여일, 인사평가에 대한 일정 공용 캘린더에 등록
+<img src="./img/Deployment Test/schedule_registration.gif"/>
+
+</details>
+
+<details>
+  
+<summary>채팅</summary>
+
+### 실시간 채팅
+<img src="./img/Deployment Test/chat.gif"/>
+
+<img src="./img/Deployment Test/chat_1.gif"/>
+
+</details>
+
+<details>
+  
+<summary>화상 회의</summary>
+
+<br/>
+
+<img src="./img/Deployment Test/video_conference.gif"/>
+
+</details>
+
+<details>
+  
+<summary>결재 + 게시판</summary>
+
+### 결재 승인 후 게시판 업로드 및 문자 전송
+<img src="./img/Deployment Test/approval_and_board.gif"/>
+
+### 결재문자
+<img src="./img/Deployment Test/approval_sms.png"/>
 
 </details>
