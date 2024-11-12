@@ -3,26 +3,38 @@
   <v-row>
     <v-col cols="6">
       <MainCalendarList style="font-size:12px; background-color:#ffffff;" />
-
     </v-col>
-    <v-col cols=" 6">
-      <v-row>
+
+    <v-col cols="6" class="right-dashboard">
+      <v-row justify="space-between">
         <!-- 공지사항 -->
         <v-col cols="12" class="board">
-          <h3 class="mb-6">공지사항</h3>
+          <v-row>
+            <v-col cols="10">
+              <h3 class="mb-4">공지사항</h3>
+            </v-col>
+            <v-col cols="auto">
+              <span style="font-size:12px;  padding-left:25px; cursor:pointer"
+                @click="$router.push('/board/notice/list')">더보기</span>
+            </v-col>
+          </v-row>
+
           <v-row>
             <!-- 게시글 목록 -->
             <v-row v-for="item in boardItems" :key="item.id" class="board-item" @click="goToDetail(item.id)">
-              <v-col cols="10" class="ellipsis-text"> {{ item.title }}</v-col>
-              <v-col style="color:#808080; padding-left:10px;">{{ formatDate(item.createdAt) }}</v-col>
+              <v-col cols="9" class="ellipsis-text"> {{ item.title }}</v-col>
+              <v-col cols="3" style="color:#808080; padding-left:40px; ">{{ formatDate(item.createdAt) }}</v-col>
             </v-row>
           </v-row>
         </v-col>
+
       </v-row>
 
       <!-- 팀원 출근 현황 -->
       <v-row class="mt-10">
-        <UserAttendance />
+        <keep-alive>
+          <UserAttendance />
+        </keep-alive>
       </v-row>
     </v-col>
   </v-row>
@@ -43,13 +55,11 @@ export default {
   },
   data() {
     return {
-
       userProfile: {},
       boardItems: [],
       currentPage: 1,
       totalPages: 1,
       itemsPerPage: 10,
-
 
     }
   },
@@ -68,11 +78,10 @@ export default {
           }
         });
 
-        console.log('Received User Profile:', response.data);
         this.userProfile = response.data;
 
-        console.log('출근 시간 기록 :', this.userProfile.attendanceData?.clockInTime || '출근기록없');
-        console.log('퇴근 시간 기록 :', this.userProfile.attendanceData?.clockOutTime || '퇴근기록없');
+        // console.log('출근 시간 기록 :', this.userProfile.attendanceData?.clockInTime || '출근기록없');
+        // console.log('퇴근 시간 기록 :', this.userProfile.attendanceData?.clockOutTime || '퇴근기록없');
       } catch (error) {
         console.error('유저 정보 가져오기 실패:', error);
       }
@@ -93,18 +102,15 @@ export default {
           this.totalPages = result.totalPages;
         }
 
-        console.log("boardItem: " + this.boardItems)
       } catch (error) {
         console.error("목록을 가져오는 중 오류가 발생했습니다:", error);
       }
     },
     formatDate(date) {
-      const options = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      };
-      return new Date(date).toLocaleDateString('ko-KR', options).replace(/\./g, '.');
+      return new Date(date)
+        .toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        .replace(/\.\s/g, '.') // 중간에 붙는 공백을 없앰
+        .replace(/\.$/, ''); // 마지막에 붙는 '.'을 없앰
     },
     goToDetail(id) {
       this.$router.push({ name: "BoardDetail", params: { id } });
@@ -114,6 +120,10 @@ export default {
 </script>
 
 <style scoped>
+.right-dashboard {
+  margin-top: 12px;
+}
+
 .profile-content {
   display: flex;
   flex-direction: column;
@@ -142,8 +152,9 @@ export default {
   /* 말줄임 */
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
+  text-overflow: ellipsis !important;
+  max-width: 360px;
+  width: 360px;
   font-weight: 600;
 }
 
@@ -156,8 +167,6 @@ export default {
   background-color: #fff;
   height: 100%;
   flex-wrap: wrap;
-
-
 }
 
 .board-item {

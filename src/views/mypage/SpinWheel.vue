@@ -20,13 +20,13 @@
           </v-sheet>
 
           <!-- Spin Button -->
-          <v-btn color="yellow darken-2" @click="rotate" large class="mt-4">돌려돌려 돌림판</v-btn>
+          <v-btn v-list @click="rotate" large class="mt-4 mr-2">시작</v-btn>
+          <v-btn v-create @click="addMenu" large>메뉴 추가</v-btn>
 
           <!-- Add Menu Section -->
           <v-row justify="center" class="mt-4">
             <v-col cols="12">
               <v-text-field v-model="newMenu" label="메뉴 추가" solo></v-text-field>
-              <v-btn color="primary" @click="addMenu" large>메뉴 추가</v-btn>
             </v-col>
           </v-row>
         </v-col>
@@ -114,11 +114,14 @@ export default {
       canvas.style.transform = "initial";
 
       const arc = 360 / this.product.length;
-      const adjustmentAngle = arc / 2;
+      // const adjustmentAngle = this.product.length === 2 ? arc / 4 : arc / 2;
+      const adjustmentAngle = arc * 1.5;
+      // const adjustmentAngle = arc / 2;
 
       setTimeout(() => {
         const ran = Math.floor(Math.random() * this.product.length);
-        const rotate = ran * arc + 3600 + arc * 3 - adjustmentAngle;
+        const rotate = ran * arc + 3600 + adjustmentAngle;
+        // const rotate = ran * arc + 3600 + arc * 3 - adjustmentAngle;
         this.currentRotation = rotate;
         canvas.style.transform = `rotate(-${rotate}deg)`;
         canvas.style.transition = "2s";
@@ -163,9 +166,11 @@ export default {
 .main-view {
   padding: -50px;
 }
+
 .header-tabs {
   margin-bottom: 30px;
 }
+
 .tab-item {
   font-weight: bold;
   font-size: 16px;
@@ -173,15 +178,18 @@ export default {
   min-width: 100px;
   background-color: #ffffff;
 }
+
 .v-tabs {
   border-bottom: 1px solid #e0e0e0;
 }
+
 canvas {
   transition: 2s;
   margin-top: 20px;
   width: 100%;
   background-color: #ffffff;
 }
+
 .indicator {
   width: 5px;
   height: 40px;
@@ -192,6 +200,7 @@ canvas {
   transform: translateX(-50%);
   z-index: 1;
 }
+
 .v-btn {
   margin-top: 20px;
 }

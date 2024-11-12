@@ -1,32 +1,22 @@
-import VideoRoomList from '@/views/video/VideoRoomList.vue'; 
-import CreateRoomPage from '@/views/video/CreateRoomPage.vue'; 
 import VideoRoom from '@/views/video/VideoRoom.vue';
-import VideoCall from '@/views/video/VideoCall.vue';
+import VideoCreate from '@/views/video/RoomCreate.vue';
+import VideoList from '@/views/video/RoomList.vue';
 
 export const videoRouter = [
   {
-    path: '/video/rooms',
-    name: 'VideoRoomList',
-    component: VideoRoomList,
-  },
-  {
-    path: '/video-call',
-    name: 'VideoCall',
-    component: VideoCall,
+    path: '/video/list',
+    name: 'RoomList',
+    component: VideoList,
   },
   {
     path: '/video/create',
-    name: 'CreateRoomPage',
-    component: CreateRoomPage,
+    name: 'VideoCreate',
+    component: VideoCreate,
   },
-  {
-    path: '/video/room/:roomId',
-    name: 'VideoRoom',
+{
+    path: '/room/:sessionId',
+    name: 'RoomView',
     component: VideoRoom,
-    props: route => ({
-      roomId: Number(route.params.roomId), 
-      roomName: route.params.roomName
-    })
-  }
-
-]
+    props: true, 
+  },
+];

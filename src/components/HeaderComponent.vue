@@ -6,9 +6,11 @@
       <v-icon class="icon" style="padding-right:8px;">mdi-clock-time-three-outline</v-icon>
       <span v-if="timeRemaining > 0" style="font-size:14px;">남은 시간:
       </span>
-      <span class="remain-time"> {{ formattedTimeRemaining }}</span>
+      <span class="remain-time"> {{ formattedTimeRemaining }} </span>
+      <span style="font-size:14px"> | </span>
+
       <span @click="extendSession" style="font-size:14px" class="extend-session">
-        | 연장
+        연장
       </span>
     </div>
 
@@ -26,14 +28,13 @@
         <v-badge :content="unreadCount" color="red" v-if="unreadCount > 0" class="unread-badge"></v-badge>
         <v-icon class="icon">mdi-bell</v-icon>
 
-
         <!-- 알림 목록 -->
-        <div v-if="showNotifications" class="notification-dropdown">
+        <div v-if="showNotifications" class="notification-dropdown" ref="notificationDropdown">
           <ul @click.stop>
             <li v-for="(notification, index) in notifications.slice(0, 4)" :key="index">
               <div class="notification-item" @click="handleNotificationClick(notification)">
                 <span>{{ truncatedMessage(notification.message, 25) }}</span>
-                <small>{{ formatDate(notification.createdAt) }}</small>
+                <small>{{ formatDate(notification.notificationTime) }}</small>
               </div>
             </li>
           </ul>
@@ -48,40 +49,35 @@
       </div>
 
       <!-- 마이페이지 -->
-      <div class="icons" @click="toggleMyPage" style="height:100%">
-
+      <div class="icons" @click="toggleMyPage" ref="myPageIcon" style="height:100%">
         <v-avatar class="icon">
           <v-img :src="userProfile?.profileImage || defaultProfileImage" aspect-ratio="1"></v-img>
         </v-avatar>
 
         <!-- 로그아웃 버튼 -->
-        <div v-if="showMyPage" class="mypage-dropdown">
+        <div v-if="showMyPage" class="mypage-dropdown" ref="myPageDropdown" @click.stop>
           <v-row justify="center">
             <v-avatar class="icon" size="80">
               <v-img :src="userProfile?.profileImage || defaultProfileImage" aspect-ratio="1"
                 style="width: 100%; height: 100%;"></v-img>
             </v-avatar>
-
           </v-row>
           <v-row justify="center">
-            <div class="user-department">{{ this.userProfile.departmentName }} {{
-              this.userProfile.positionName }}</div>
+            <div class="user-department">{{ this.userProfile.departmentName }} {{ this.userProfile.positionName }}</div>
           </v-row>
-
-          <v-row justify="center" class="toggle-btn">
-            <v-icon style="padding-right:5px; font-size:20px">mdi-account</v-icon>
-            <btn @click="$router.push('/mypage/vacation')">
-              마이페이지
-            </btn>
+          <v-row @click="goToVacationPage" justify="center" class="toggle-btn">
+            <v-icon style="padding-right:5px; font-size:20px; align">mdi-account</v-icon>
+            <button>마이페이지</button>
           </v-row>
-          <v-row justify="center" class="toggle-btn">
+          <v-row @click="logout" justify="center" class="toggle-btn">
             <v-icon style="padding-right:5px; font-size:20px">mdi-logout</v-icon>
-            <btn @click="logout">
+            <button>
               로그아웃
-            </btn>
+            </button>
           </v-row>
         </div>
       </div>
+
     </div>
   </header>
 
@@ -90,6 +86,8 @@
 <script>
 import axios from "axios";
 import { jwtDecode } from 'jwt-decode';
+import { formatDistanceToNow, addHours } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 export default {
   name: 'HeaderComponent',
@@ -116,8 +114,16 @@ export default {
     this.calculateTokenTimeRemaining();  // 토큰 유효 시간 계산
     this.initSSE();
     this.fetchUserProfile();
+    this.fetchChatAlarmNum();
   },
   methods: {
+
+    formatDate(notificationTime) {
+      const dateInKST = addHours(new Date(notificationTime), 9);
+
+      return formatDistanceToNow(dateInKST, { addSuffix: true, locale: ko });
+      
+    },
     // SSE 연결 설정
     initSSE() {
       const token = localStorage.getItem("token");
@@ -131,16 +137,17 @@ export default {
       // 새로운 알림 수신 시 처리
       this.eventSource.onmessage = (event) => {
         const newNotification = JSON.parse(event.data);
+        if (!newNotification.notificationTime) {
+          newNotification.notificationTime = new Date().toISOString();
+        }
+
         if (newNotification.type == '채팅알림') {
           this.unreadChatNum = newNotification.alarmNum;
-          console.log(newNotification);
+          console.log(newNotification);//
           return;
         } else if (newNotification.type == '채팅입장') {
-          this.unreadChatNum = newNotification.alarmNum;
-          console.log(newNotification);
           return;
         } else if (newNotification.type == '채팅목록') {
-          console.log(newNotification);
           return;
         }
         console.log(newNotification);
@@ -160,15 +167,48 @@ export default {
         }
       };
     },
+    async markNotificationAsRead(notificationId) {
+      const userNum = localStorage.getItem("userNum");
+      try {
+        await axios.put(`${process.env.VUE_APP_API_BASE_URL}/notifications/${userNum}/read/${notificationId}`, {}, {
+          headers: this.getAuthHeaders(),
+        });
+
+        console.log(`알림 ${notificationId} 읽음 처리 완료`);
+      } catch (error) {
+        console.error("알림 읽음 처리 중 오류 발생:", error);
+      }
+    },
+
+
+    async fetchChatAlarmNum(){
+      try{
+        const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/chatRoom/alarm`);
+        this.unreadChatNum = response.data.result;
+        console.log(response);
+      } catch (error) {
+        console.error("오류발생");
+      }
+    },
 
     // 알림 목록 가져오기 (최신 4개)
     async fetchNotifications() {
       try {
-        const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/notifications/list`, {
+        const userNum = localStorage.getItem("userNum");
+        const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/notifications/${userNum}`, {
           headers: this.getAuthHeaders(),
         });
+
+        // 전체 알림 목록 가져오기
         this.notifications = response.data;
-        console.log("알림 데이터:", this.notifications);
+
+        this.notifications.sort((a, b) => new Date(b.notificationTime) - new Date(a.notificationTime));
+
+        // 읽지 않은 알림 개수 업데이트
+        this.unreadCount = this.notifications.filter(n => !n.read).length;
+
+        this.notifications = this.notifications.slice(0, 4);
+
       } catch (error) {
         console.error("알림을 가져오는 중 오류 발생:", error);
       }
@@ -178,10 +218,22 @@ export default {
     toggleNotifications() {
       this.showNotifications = !this.showNotifications;
     },
-    handleClickOutside(event) {
+    clickNotificationOutside(event) {
+      const notificationDropdown = this.$refs.notificationDropdown;
       const notificationIcon = this.$refs.notificationIcon;
-      if (notificationIcon && !notificationIcon.contains(event.target)) {
+
+      // 클릭한 곳이 알림 드롭다운이나 아이콘이 아니면 드롭다운을 닫음
+      if (this.showNotifications && notificationDropdown && !notificationDropdown.contains(event.target) && notificationIcon && !notificationIcon.contains(event.target)) {
         this.showNotifications = false;
+      }
+    },
+    clickOutside(event) {
+      const myPageDropdown = this.$refs.myPageDropdown;
+      const myPageIcon = this.$refs.myPageIcon;
+
+      // 클릭한 곳이 드롭다운이나 마이페이지 아이콘이 아니면 드롭다운을 닫음
+      if (this.showMyPage && myPageDropdown && !myPageDropdown.contains(event.target) && myPageIcon && !myPageIcon.contains(event.target)) {
+        this.showMyPage = false;
       }
     },
     // 읽지 않은 알림 개수 가져오기
@@ -205,23 +257,59 @@ export default {
     goToNotifications() {
       this.$router.push('/notification/notificationList');
     },
-    handleNotificationClick(notification) {
-      let targetUrl = '';
-
-      // 알림 유형에 따른 URL 설정
-      if (notification.type === '공지사항') {
-        targetUrl = 'http://localhost:8082/board/notice/list';
-      } else if (notification.type === '경조사') {
-        targetUrl = 'http://localhost:8082/board/familyevent/list';
-      } else if (notification.type === '예약') {
-        targetUrl = 'http://localhost:8082/reservation/meetReservationList';
-      } else if (notification.type === '결재') {
-        targetUrl = 'http://localhost:8082/submit/list';
-      } else if (notification.type === '문서') {
-        targetUrl = 'http://localhost:8082/document';
+    async handleNotificationClick(notification) {
+      // 알림을 읽음 처리합니다
+      if (!notification.read) {
+        await this.markNotificationAsRead(notification.id);
+        // 읽지 않은 알림 개수 줄이기
+        this.unreadCount -= 1;
+        notification.read = true;  // 상태 업데이트
       }
+      // 알림 클릭 시 알림 유형에 따라 경로 이동
+      this.redirectToNotification(notification);
+    },
+    redirectToNotification(notification) {
+      const message = notification.message;
 
-      window.location.href = targetUrl;
+      // [ 이벤트 ]나 [ EVENT ]가 포함된 경우 라우팅을 무시
+      if (message.includes("[ 이벤트 ]") || message.includes("[ EVENT ]")) {
+        console.log("이벤트 알림이므로 라우팅을 건너뜁니다.");
+        return; // 라우팅을 수행하지 않고 종료
+      }
+      if (message.includes("인사평가 기간입니다")) {
+        console.log("인사평가 알림이므로 라우팅을 건너뜁니다.");
+        return; // 라우팅을 수행하지 않고 종료
+      }
+      // 공지사항 (게시판) 알림인 경우
+      if (notification.type === '공지사항' && notification.targetId) {
+        this.$router.push(`/board/detail/${notification.targetId}`);
+      } 
+      // 문의 알림인 경우
+      else if (notification.type === '문의') {
+        this.$router.push(`/qna/detail/${notification.targetId}`);
+      } 
+      // 예약 알림인 경우
+      else if (notification.type === '예약') {
+        if (notification.status === 'RESERVED') {
+          window.location.href = '/reservation/adminCarResList';
+        } else {
+          window.location.href = '/reservation/reservationList';
+        }
+      } 
+      // 결재 알림인 경우
+      else if (notification.type === '결재' && notification.targetId) {
+        const isMySubmitReq = notification.status === '승인';
+        this.$router.push(`/submit/detail/${notification.targetId}?isMySubmitReq=${isMySubmitReq}`);
+      } 
+      // 문서 알림인 경우
+      else if (notification.type === '문서') {
+        window.location.href = '/document';
+      } 
+      // 기타 알림 처리
+      else {
+        console.warn("처리되지 않은 알림 유형:", notification.type);
+        
+      }
     },
 
 
@@ -239,7 +327,8 @@ export default {
 
     // 채팅룸 리스트 열기
     showChatRoomList() {
-      window.open("/chatRoom/list", "chatRoomList", "width=480, height=650")
+      var status = "toolbar=no,scrollbars=no,resizable=no,status=no,menubar=no,width=460, height=600, top=100,left=1000"
+      window.open("/chatRoom/list", "chatRoomList", status);
     },
 
     // 로그인 연장
@@ -290,15 +379,24 @@ export default {
         this.logout();
       }
     },
-
-    // 날짜 포맷팅
-    formatDate(notificationTime) {
-      const date = new Date(notificationTime);
-      if (isNaN(date.getTime())) { // 날짜가 유효하지 않다면
-        return "Invalid date"; // 오류 메시지 대신 기본값을 반환
+    handleClickOutside(event) {
+      const dropdown = this.$el.querySelector('.dropdown');
+      if (dropdown && !dropdown.contains(event.target)) {
+        this.isDropdownOpen = false;
       }
-      return date.toLocaleDateString(); // 유효한 경우 날짜 포맷 반환
     },
+    goToVacationPage(event) {
+      event.preventDefault(); // 기본 동작 방지
+      this.$router.push('/mypage/vacation');
+    },
+    // 날짜 포맷팅
+    // formatDate(notificationTime) {
+    //   const date = new Date(notificationTime);
+    //   if (isNaN(date.getTime())) { // 날짜가 유효하지 않다면
+    //     return "Invalid date"; // 오류 메시지 대신 기본값을 반환
+    //   }
+    //   return date.toLocaleDateString(); // 유효한 경우 날짜 포맷 반환
+    // },
     async fetchUserProfile() {
       try {
         const token = localStorage.getItem('token');
@@ -309,7 +407,6 @@ export default {
           }
         });
 
-        console.log('Received User Profile:', response.data);
         this.userProfile = response.data;
       } catch (error) {
         console.error('유저 정보 가져오기 실패:', error);
@@ -325,12 +422,23 @@ export default {
       const seconds = this.timeRemaining % 60;
       return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     }
+    // 남은 시간이 10분 이하일 경우 클래스 적용
+    ,
+    timeClass() {
+      return this.timeRemaining <= 600 ? 'time-critical' : ''; // 600초 = 10분
+    }
+
   },
   mounted() {
+    window.parentVueInstance = this;
     document.addEventListener("click", this.handleClickOutside);
+    document.addEventListener('click', this.clickOutside);
+    document.addEventListener('click', this.clickNotificationOutside);
   },
   beforeUnmount() {
     document.removeEventListener("click", this.handleClickOutside);
+    document.removeEventListener('click', this.clickOutside);
+    document.addEventListener('click', this.clickNotificationOutside);
     if (this.eventSource) {
       this.eventSource.close();  // 컴포넌트가 파괴될 때 SSE 연결 종료
       document.removeEventListener("click", this.handleClickOutside);
@@ -447,10 +555,9 @@ export default {
   text-align: center;
   padding: 10px;
   cursor: pointer;
-  color: #007bff;
-  /* 파란색 강조 */
+  color: #722121;
+  font-weight: 800;
   border-radius: 0 0 10px 10px;
-  /* 더보기 버튼도 동글동글 */
 }
 
 .view-more:hover {
@@ -531,5 +638,16 @@ export default {
 
 .extend-session {
   cursor: pointer;
+}
+
+.extend-session:hover {
+  cursor: pointer;
+  color: #9a2f2f;
+  font-weight: 800;
+}
+
+/* 시간이 10분 이하일 때 빨간색 텍스트 */
+.time-critical {
+  color: red;
 }
 </style>

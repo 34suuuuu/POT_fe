@@ -49,7 +49,6 @@
       <!-- 내용 입력 필드 -->
       <div id="editor" class="content-input" contenteditable="true"></div>
 
-
       <!-- 파일 첨부 -->
       <v-file-input v-model="files" label="파일첨부"
         accept="image/*, application/pdf, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -82,9 +81,9 @@
       <!-- 고정 여부 체크박스, 취소 및 저장 버튼 -->
       <div class="btnWrap">
         <v-checkbox v-if="selectedCategory !== 'FAMILY_EVENT'" v-model="isPinned" label="중요" class="mr-4" />
+        <v-btn v-create type="submit" class="ml-4">등록</v-btn>
+        <v-btn v-delete @click="cancel">취소</v-btn>
 
-        <v-btn text @click="cancel">취소</v-btn>
-        <v-btn color="primary" type="submit" class="ml-4">저장</v-btn>
       </div>
     </v-form>
 
@@ -97,8 +96,8 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text @click="closeTagModal">취소</v-btn>
-          <v-btn color="primary" @click="addNewTag">저장</v-btn>
+          <v-btn v-create @click="addNewTag">저장</v-btn>
+          <v-btn v-delete text @click="closeTagModal">취소</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -123,7 +122,7 @@ export default {
       showTagModal: false, // 태그 추가 모달 상태
       newTagName: '', // 새로운 태그 이름
       titleMaxLength: 100, // 제목 최대 길이
-      contentMaxLength: 5000, // 내용 최대 길이
+      contentMaxLength: 30000, // 내용 최대 길이
     };
   },
   mounted() {
@@ -151,6 +150,39 @@ export default {
         alert('카테고리 설정 중 문제가 발생했습니다. 다시 시도해주세요.');
       }
     },
+    
+    async removeTag(tagId) {
+      console.log("태그 삭제 요청: ", tagId);
+      try {
+        const response = await axios.delete(`${process.env.VUE_APP_API_BASE_URL}/tags/delete/${tagId}`);
+        console.log("태그 삭제 응답: ", response.data);
+
+        if (response.status === 200) {
+          // 태그 목록과 선택된 태그 배열에서 삭제
+          this.tags = this.tags.filter(tag => tag.id !== tagId);
+          this.selectedTags = this.selectedTags.filter(id => id !== tagId);
+          console.log("현재 선택된 태그: ", this.selectedTags); // 배열 업데이트 후 로그 확인
+        } else {
+          alert("태그 삭제에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("태그 삭제 중 오류 발생: ", error);
+        alert("태그 삭제에 실패했습니다.");
+      }
+    },
+
+
+    toggleTagSelection(tagId) {
+      const index = this.selectedTags.indexOf(tagId);
+      if (index === -1) {
+        // 배열이 업데이트되는 과정을 명확하게 보여줌
+        this.selectedTags = [...this.selectedTags, tagId];
+      } else {
+        this.selectedTags = this.selectedTags.filter(id => id !== tagId);
+      }
+      console.log("태그 선택 후 현재 선택된 태그: ", this.selectedTags);
+    },
+
 
     // 유저가 관리자 권한을 갖고 있는지 확인
     checkUserRole() {
@@ -261,6 +293,10 @@ export default {
       formData.append('isPinned', this.isPinned ? 'true' : 'false');
       formData.append('tagIds', this.selectedTags);
 
+      const currentDate = new Date();
+      const currentTimeKST = new Date(currentDate.getTime() + 9 * 60 * 60 * 1000).toISOString();
+      formData.append('createdTime', currentTimeKST);
+
       if (this.files && this.files.length > 0) {
         this.files.forEach((file) => {
           formData.append('files', file);
@@ -335,7 +371,6 @@ export default {
     },
   },
 };
-
 </script>
 
 
@@ -390,14 +425,14 @@ export default {
 }
 
 .tag-button {
-  min-width: 100px;
+  min-width: 10px;
   text-align: center;
 }
 
 /* 둥근 모양 버튼 스타일 */
 .rounded-button {
   border-radius: 20px;
-  padding: 10px 20px;
+  padding:10px;
 }
 
 .remove-tag-btn {

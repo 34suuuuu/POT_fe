@@ -1,9 +1,13 @@
 <template>
   <v-container>
+    <v-row class="mb-12" style="padding-left:30px">
+      <!-- style="margin:40px 50px" -->
+      <h1 :class="{ 'drawer-open': drawer }">{{ pageTitle || '일정 목록' }}</h1>
+    </v-row>
+
     <v-row class="mt-4 mb-4">
-      <h1>일정 목록</h1>
       <v-col class="text-right">
-        <v-btn color="primary" @click="showDialog = true" large>
+        <v-btn v-create @click="showDialog = true" large>
           새로운 일정 생성
         </v-btn>
       </v-col>
@@ -11,11 +15,11 @@
 
     <v-row class="mt-4">
       <v-col cols="12">
-        <v-row class="mb-3">
+        <!-- <v-row class="mb-3">
           <v-col cols="4"><strong>일정명</strong></v-col>
           <v-col cols="5"><strong>기간</strong></v-col>
           <v-col cols="3"><strong>히스토리</strong></v-col>
-        </v-row>
+        </v-row> -->
 
         <v-row v-for="(event, index) in eventList" :key="event.id" class="event-row">
           <v-col cols="4">
@@ -26,9 +30,12 @@
           </v-col>
 
           <v-col cols="3" class="text-right">
-            <v-btn text @click="toggleHistory(index, event.id)">
+            <v-btn v-list text @click="toggleHistory(index, event.id)">
               <v-icon>{{ event.showHistory ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
               히스토리 보기
+            </v-btn>
+            <v-btn text v-delete @click="deleteEvent(event.id, index)">
+              삭제
             </v-btn>
           </v-col>
 
@@ -53,58 +60,59 @@
       </v-col>
     </v-row>
 
-    <v-dialog v-model="showDialog" max-width="1200px">
+    <v-dialog v-model="showDialog" max-width="600px">
       <v-card :style="{ height: 'auto', padding: '20px' }">
         <v-card-title>새 일정 생성</v-card-title>
         <v-card-text>
-          <v-combobox
-            v-model="newEventType"
-            :items="eventTypes"
-            label="일정 타입 선택"
-            outlined
-            dense
-            placeholder="일정을 선택하세요"
-          ></v-combobox>
+          <!-- 일정 타입 선택 -->
+          <v-combobox 
+            v-model="newEventType" 
+            :items="eventTypes" 
+            label="일정 타입 선택" 
+            outlined 
+            dense 
+            placeholder="일정을 선택하세요" 
+            class="mb-4"
+             :error="!newEventType && showErrors"
+             required
+          />
+          <span v-if="!newEventType && showErrors" class="error-text">일정 타입을 선택/입력해주세요</span>
+
 
           <!-- 달력 등록 체크박스 -->
-          <v-checkbox
-            v-model="registerToCalendar"
-            label="달력 등록"
-          ></v-checkbox>
-
+          <v-checkbox v-model="registerToCalendar" label="달력 등록" class="mb-4"></v-checkbox>
+          
           <!-- 시작일과 종료일 선택 -->
           <v-row class="mt-3" justify="space-between">
             <v-col cols="12" md="6">
-              <v-date-picker
+              <v-text-field
                 v-model="newStartDate"
                 label="시작일 선택"
-                full-width
-                color="brown"
-                :header-color="'brown'"
-              ></v-date-picker>
+                type="date"
+                @change="syncEndDate"
+                outlined
+                dense
+                class="mb-4"
+              />
             </v-col>
-
+    
             <v-col cols="12" md="6">
-              <v-date-picker
+              <v-text-field
                 v-model="newEndDate"
                 label="종료일 선택"
-                full-width
-                color="brown"
-                :header-color="'brown'"
-              ></v-date-picker>
+                type="date"
+                outlined
+                dense
+                class="mb-4"
+              />
             </v-col>
           </v-row>
         </v-card-text>
-
         <!-- 생성 버튼 -->
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" @click="createOrUpdateCalendar">
-            저장
-          </v-btn>
-          <v-btn text @click="showDialog = false">
-            취소
-          </v-btn>
+          <v-btn color="primary" @click="createOrUpdateCalendar">저장</v-btn>
+          <v-btn text @click="showDialog = false">취소</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -124,13 +132,25 @@ export default {
       newEndDate: null, // 종료일 선택
       registerToCalendar: false, // 달력 등록 상태 추가
       showDialog: false, // 모달창 상태
+      showErrors: false,
     };
   },
   methods: {
+    syncEndDate() {
+    if (!this.newEndDate || new Date(this.newEndDate) < new Date(this.newStartDate)) {
+      this.newEndDate = this.newStartDate;
+    }
+  },
     async createOrUpdateCalendar() {
+      this.showErrors = true;
       const userNum = localStorage.getItem('userNum');
       if (!userNum) {
         alert('로그인 정보가 없습니다.');
+        return;
+      }
+
+      if (!this.newEventType) {
+        alert("일정 타입을 선택/입력해주세요");
         return;
       }
 
@@ -141,7 +161,6 @@ export default {
         const formattedStartDate = this.formatDate(startDate);
         const formattedEndDate = this.formatDate(endDate);
 
-        // 이벤트 등록 코드 그대로 유지
         const eventPayload = {
           eventType: this.newEventType,
           startDate: formattedStartDate,
@@ -205,8 +224,23 @@ export default {
 
         alert('일정이 성공적으로 처리되었습니다.');
         this.showDialog = false; // 모달창 닫기
+        this.fetchEventList(); 
       } catch (error) {
         console.error('일정 저장 중 오류 발생:', error);
+      }
+    },
+
+    async deleteEvent(eventId, index) {
+      try {
+        await axios.delete(`/eventDate/delete/${eventId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        this.eventList.splice(index, 1);
+        alert('일정이 성공적으로 삭제되었습니다.');
+      } catch (error) {
+        console.error('일정 삭제 중 오류 발생:', error);
       }
     },
 
@@ -235,7 +269,7 @@ export default {
     toggleHistory(index, eventId) {
       this.eventList[index].showHistory = !this.eventList[index].showHistory;
       if (!this.eventList[index].eventHistories.length) {
-        this.fetchEventHistory(eventId, index); // 해당 이벤트의 히스토리가 없으면 가져옴
+        this.fetchEventHistory(eventId, index);
       }
     },
 
@@ -253,12 +287,22 @@ export default {
     },
   },
   mounted() {
-    this.fetchEventList(); // 페이지 로드 시 이벤트 목록 불러오기
+    this.fetchEventList();
   },
 };
 </script>
 
 <style scoped>
+.container {
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.drawer-open {
+  transition: margin-right 0.3s ease;
+  margin-right: 200px;
+}
+
 h1 {
   margin-bottom: 20px;
 }
@@ -269,9 +313,9 @@ h1 {
   transition: background-color 0.3s;
 }
 
-.event-row:hover {
+/* .event-row:hover {
   background-color: #f9f9f9;
-}
+} */
 
 .event-type {
   font-size: 20px;
@@ -285,6 +329,7 @@ h1 {
 
 .v-btn {
   font-size: 16px;
+  margin-right: 10px;
 }
 
 .history-row {
@@ -316,4 +361,5 @@ h1 {
 .v-card {
   background-color: #f9f9f9;
 }
+
 </style>

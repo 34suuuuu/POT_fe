@@ -3,16 +3,16 @@
     <template #evaluationList>
       <v-row>
         <v-col>
-          <h3>인사평가 리스트</h3>
           <br>
-          <span>* 인사평가를 위한 자신의 리스트를 작성하세요</span>
-          <v-simple-table dense>
+          <div class="mb-6"><strong>* 인사평가를 위한 자신의 리스트를 작성하세요</strong></div>
+          <v-table dense>
             <thead>
-              <tr>
-                <th>대분류</th>
-                <th>중분류</th>
-                <th>소분류</th>
-                <th>평가</th>
+              <tr style="background-color:rgba(122,86,86,0.2);font-weight:800">
+                <th style="padding:10px;  border: 1px solid #f5f5f5; text-align: center;font-weight:800">대분류</th>
+                <th style="padding:10px;  border: 1px solid #f5f5f5; text-align: center; font-weight:800">중분류</th>
+                <th style="padding:10px; text-align: center; font-weight:800">소분류</th>
+                <th style="padding:10px;"></th>
+                <th style="padding:10px;  border: 1px solid #f5f5f5; text-align: center; font-weight:800">평가</th>
               </tr>
             </thead>
             <tbody>
@@ -24,12 +24,13 @@
                 <td style="width: 200px; text-align: center; border: 1px solid #e0e0e0;">
                   {{ item.midCategoryName }}
                 </td>
-                <td style="border: 1px solid #e0e0e0;" width="700">
+                <td style="border: 1px solid #e0e0e0;padding:0" width="700">
                   <v-text-field v-model="item.subEvalutionContent" :label="item.subEvalutionContent ? '' : '소분류 입력'"
-                    outlined dense :disabled="item.saved && !item.editable"
-                    :style="{ width: '600px', marginRight: '10px', color: '#000000', float: 'left', border: 'none' }" />
-                  <v-btn icon @click="toggleEditAndSave(item, index)"
-                    style="justify-content: center; width: 30px; height: 30px; margin-top: 15px; margin-right: 10px; background-color: transparent; box-shadow: none;">
+                    outlined hide-details dense :disabled="item.saved && !item.editable" s />
+                </td>
+                <td style="padding:0 10px;">
+                  <v-btn icon @click="changeStatus(item)"
+                    style="justify-content: center; width: 30px; height: 30px; background-color: transparent; box-shadow: none;">
                     <v-icon>{{ item.editable ? 'mdi-check' : 'mdi-pencil' }}</v-icon>
                   </v-btn>
                 </td>
@@ -40,14 +41,14 @@
                 </td>
               </tr>
             </tbody>
-          </v-simple-table>
+          </v-table>
 
           <v-row justify="end" style="margin-top: 20px;">
-            <v-btn @click="saveAllSubEvalutions" :disabled="isSaveDisabled"
-              style="background-color: #4CAF50; color: white;">
+            <v-btn v-create @click="saveAllSubEvalutions" :disabled="isSaved">
               전체 저장
             </v-btn>
           </v-row>
+
         </v-col>
       </v-row>
     </template>
@@ -65,12 +66,16 @@ export default {
   data() {
     return {
       evalutions: [], // 대/중/소분류 데이터
+      isEvaluationPeriod: '',
     };
   },
   computed: {
     isSaveDisabled() {
       return this.evalutions.some(item => !item.subEvalutionContent || item.subEvalutionContent.trim() === '');
     },
+    isSaved() {
+      return this.evalutions.every(item => item.saved && item.subEvalutionContent.trim() !== '');
+    }
   },
   created() {
     this.fetchSubEvalutions();
@@ -89,10 +94,18 @@ export default {
           subEvalutionContent: item.subEvalutionContent || '',
           grade: item.grade || '',
           saved: !!item.subEvalutionContent,
-          editable: !item.saved,
+          editable: !item.subEvalutionContent,
         }));
+
       } catch (error) {
-        console.error('Failed to fetch evaluations', error);
+        console.error('소분류 불러오기 실패', error);
+      }
+    },
+    changeStatus(item) {
+      if (item.editable) {
+        this.toggleEditAndSave(item);
+      } else {
+        item.editable = true;
       }
     },
     async toggleEditAndSave(item) {
@@ -106,12 +119,12 @@ export default {
             },
           });
 
-          item.editable = false;
           item.saved = true;
+          item.editable = false;
           alert('수정이 완료되었습니다.');
         } catch (error) {
           console.error('소분류 수정 실패', error);
-          alert('수정에 실패했습니다.');
+          alert('수정에 성공했습니다.');
         }
       } else {
         item.editable = true;
@@ -142,8 +155,14 @@ export default {
           subEvalutionId: item.subEvalutionId,
         }));
 
+
       if (payload.length === 0) {
         alert('저장할 소분류가 없습니다.');
+        return;
+      }
+
+      if (this.isSaveDisabled) {
+        alert('모든 항목을 작성해주세요.');
         return;
       }
 
@@ -160,11 +179,10 @@ export default {
             item.editable = false;
           }
         });
-
         alert('모든 소분류가 성공적으로 저장되었습니다.');
+        location.reload();
       } catch (error) {
         console.error('Failed to save sub-evaluations', error);
-        alert('저장에 실패했습니다.');
       }
     },
   },
@@ -175,16 +193,21 @@ export default {
 .header-tabs {
   margin-bottom: 30px;
 }
+
 .v-tabs--density-default {
   --v-tabs-height: 48px;
 }
+
 .v-tabs {
   border-bottom: 1px solid #e0e0e0;
 }
+
 .v-tab {
   font-weight: bold;
 }
-th, td {
+
+th,
+td {
   border: 1px solid #e0e0e0;
 }
 </style>

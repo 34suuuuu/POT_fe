@@ -8,39 +8,31 @@
 
         <!-- 알림 타입 필터 버튼 -->
         <v-btn-toggle v-model="selectedType" class="mb-4 custom-btn-toggle">
-          <v-btn
-            v-for="(label, value) in notificationTypes"
-            :key="value"
-            :value="value"
-            class="custom-btn"
-            :class="{ active: selectedType === value }"
-            @click="navigateToType(value)"
-          >
+          <v-btn v-for="(label, value) in notificationTypes" :key="value" :value="value" class="custom-btn"
+            :class="{ active: selectedType === value }" @click="navigateToType(value)">
             {{ label }}
           </v-btn>
         </v-btn-toggle>
 
         <!-- 알림 리스트 -->
-        <v-list style="background-color: #ffffff;">
+        <v-list>
           <v-list-item-group>
             <v-list-item
               v-for="notification in filteredNotifications"
               :key="notification.id"
               @click="handleNotificationClick(notification)"
               class="notification-item"
-              :class="{ read: notification.isRead }"
+              :class="{ read: notification.isRead, unread: !notification.isRead }"
             >
               <v-list-item-content>
                 <v-list-item-subtitle>
-                  <strong>{{ notification.type }}</strong> &nbsp;&nbsp;&nbsp; {{ formatDate(notification.notificationTime) }}
+                  <strong>{{ notification.type }}</strong> &nbsp;&nbsp;&nbsp;
+                  {{ formatDate(notification.notificationTime) }}
                 </v-list-item-subtitle>
-                <br>
                 <v-list-item-title>
-                  <!-- isRead가 0일 때만 [NEW] 표시 -->
-                  <strong v-if="notification.isRead == 0">[NEW]</strong>
+                  <strong v-if="!notification.isRead" class="new-label"></strong>
                   {{ notification.message }}
                 </v-list-item-title>
-                <br>
               </v-list-item-content>
             </v-list-item>
           </v-list-item-group>
@@ -62,11 +54,11 @@ export default {
       maxRetryCount: 5,
       notifications: [],
       unreadCount: 0,
-      selectedType: "", // 선택된 알림 타입
+      selectedType: "",
       notificationTypes: {
         "": "전체",
         공지사항: "공지사항",
-        경조사: "경조사",
+        문의: "문의",
         예약: "예약",
         결재: "결재",
         문서: "문서",
@@ -76,10 +68,9 @@ export default {
   created() {
     this.fetchNotifications();
     this.fetchUnreadCount();
-    this.initSSE(); // SSE 초기화
+    this.initSSE();
   },
   computed: {
-    // 선택된 타입에 따른 알림 필터링
     filteredNotifications() {
       let filtered = this.notifications;
       if (this.selectedType) {
@@ -95,9 +86,7 @@ export default {
   methods: {
     navigateToType(value) {
       this.selectedType = value;
-
     },
-    // JWT 토큰을 URL의 쿼리 파라미터로 포함한 SSE 연결
     initSSE() {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -106,25 +95,23 @@ export default {
       }
 
       try {
-        // EventSource 객체 생성
         this.eventSource = new EventSource(
           `${process.env.VUE_APP_API_BASE_URL}/notifications/subscribe?token=${token}`
         );
 
-        // 메시지 수신 처리
         this.eventSource.onmessage = (event) => {
           const newNotification = JSON.parse(event.data);
-          this.notifications.unshift(newNotification); // 새로운 알림을 맨 위에 추가
+          this.notifications.unshift(newNotification);
+          this.unreadCount++;
         };
 
-        // 오류 처리 및 재연결
         this.eventSource.onerror = (error) => {
           console.error("SSE 연결 오류 발생:", error);
 
           if (this.retryCount < this.maxRetryCount) {
             setTimeout(() => {
               this.retryCount++;
-              this.initSSE(); // 재연결
+              this.initSSE();
             }, this.getRetryInterval());
           } else {
             console.error("최대 재연결 시도 횟수에 도달했습니다.");
@@ -135,7 +122,7 @@ export default {
       }
     },
     getRetryInterval() {
-      return Math.min(1000 * Math.pow(2, this.retryCount), 30000); // 최대 30초까지 증가
+      return Math.min(1000 * Math.pow(2, this.retryCount), 30000);
     },
 
     formatDate(notificationTime) {
@@ -143,26 +130,27 @@ export default {
       return date.toLocaleDateString();
     },
 
-    // 전체 알림 리스트 가져오기
     async fetchNotifications() {
       try {
+        const userNum = localStorage.getItem("userNum");
         const response = await axios.get(
-          `${process.env.VUE_APP_API_BASE_URL}/notifications/list`,
+          `${process.env.VUE_APP_API_BASE_URL}/notifications/${userNum}`,
           {
             headers: this.getAuthHeaders(),
           }
         );
         this.notifications = response.data;
+        this.unreadCount = this.notifications.filter((n) => !n.isRead).length;
       } catch (error) {
         console.error("알림 데이터를 가져오는 중 오류 발생:", error);
       }
     },
 
-    // 읽지 않은 알림 개수 가져오기
     async fetchUnreadCount() {
       try {
+        const userNum = localStorage.getItem("userNum");
         const response = await axios.get(
-          `${process.env.VUE_APP_API_BASE_URL}/notifications/unread-count`,
+          `${process.env.VUE_APP_API_BASE_URL}/notifications/unread-count/${userNum}`,
           {
             headers: this.getAuthHeaders(),
           }
@@ -173,24 +161,51 @@ export default {
       }
     },
 
-    // 알림 읽음 처리
     async markAsRead(notificationId) {
+      const userNum = localStorage.getItem("userNum");
       try {
-        await axios.post(
-          `${process.env.VUE_APP_API_BASE_URL}/notifications/mark-as-read/${notificationId}`,
+        await axios.put(
+          `${process.env.VUE_APP_API_BASE_URL}/notifications/${userNum}/read/${notificationId}`,
           null,
-          {
-            headers: this.getAuthHeaders(),
-          }
+          { headers: this.getAuthHeaders() }
         );
-        this.fetchNotifications();
-        this.fetchUnreadCount(); // 읽지 않은 알림 개수 다시 가져오기
+        console.log(`알림 ${notificationId} 읽음 상태로 변화`);
       } catch (error) {
         console.error("알림 읽음 처리 중 오류 발생:", error);
       }
     },
+    async handleNotificationClick(notification) {
+      if (!notification.isRead) {
+        try {
+          await this.markAsRead(notification.id); // 서버에서 읽음 처리
+          notification.isRead = true; // 읽음 상태 업데이트
+          if (this.unreadCount > 0) this.unreadCount -= 1; // 카운트 감소
+        } catch (error) {
+          console.error("알림 읽음 처리 중 오류 발생:", error);
+        }
+      }
+      this.redirectToNotification(notification); // 알림 클릭 시 이동
+    },
 
-    // 인증 헤더 가져오기
+    redirectToNotification(notification) {
+      if (notification.type === '공지사항' && notification.targetId) {
+        this.$router.push(`/board/detail/${notification.targetId}`);
+      } else if (notification.type === '문의') {
+        this.$router.push(`/qna/detail/${notification.targetId}`);
+      } else if (notification.type === '예약') {
+        if (notification.status === 'RESERVED') {
+          window.location.href = '/reservation/adminCarResList';
+        } else {
+          window.location.href = '/reservation/reservationList';
+        }
+      } else if (notification.type === '결재' && notification.targetId) {
+        const isMySubmitReq = notification.status === '승인';
+        this.$router.push(`/submit/detail/${notification.targetId}?isMySubmitReq=${isMySubmitReq}`);
+      } else if (notification.type === '문서') {
+        window.location.href = '/document';
+      }
+    },
+
     getAuthHeaders() {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -201,25 +216,7 @@ export default {
         Authorization: `Bearer ${token}`,
       };
     },
-    handleNotificationClick(notification) {
-      let targetUrl = '';
-
-      // 알림 유형에 따른 URL 설정
-      if (notification.type === '공지사항') {
-        targetUrl = 'http://localhost:8082/board/notice/list';
-      } else if (notification.type === '경조사') {
-        targetUrl = 'http://localhost:8082/board/familyevent/list';
-      } else if (notification.type === '예약') {
-        targetUrl = 'http://localhost:8082/reservation/meetReservationList';
-      } else if (notification.type === '결재') {
-        targetUrl = 'http://localhost:8082/submit/list';
-      } else if (notification.type === '문서') {
-        targetUrl = 'http://localhost:8082/document';
-      }
-
-      window.location.href = targetUrl;  
-    },
-  }
+  },
 };
 </script>
 
@@ -229,6 +226,7 @@ export default {
   font-weight: bold;
   color: red;
 }
+
 .custom-btn-toggle {
   display: flex;
   gap: 10px;
@@ -243,7 +241,7 @@ export default {
 }
 
 .custom-btn.active {
-  background-color: #3f51b5;
+  background-color: #4caf50;
   color: white;
   border: none;
 }
@@ -251,16 +249,31 @@ export default {
 .custom-btn:hover {
   background-color: #ddd;
 }
+
 .notification-item {
   margin-bottom: 15px !important;
   padding: 0px 40px;
   border-radius: 10px !important;
   background-color: #f9f9f9 !important;
   box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1) !important;
+  padding: 20px;
+}
+
+.notification-item.unread {
+  background-color: #e8f5e9;
+  color: black;
+  font-weight: bold;
+  padding: 20px;
 }
 
 .notification-item.read {
   color: gray;
   background-color: #e0e0e0;
+  padding: 20px;
+}
+
+.new-label {
+  color: #f44336;
+  margin-right: 8px;
 }
 </style>
