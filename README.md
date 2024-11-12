@@ -74,7 +74,6 @@
 
 <br/>
 
-
 [API 명세서 보기](https://documenter.getpostman.com/view/38441114/2sAXxLDEz5)
 
 </div>
